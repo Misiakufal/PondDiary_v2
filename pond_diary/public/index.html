@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a1427">
+  <title>Pond Diary</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="masthead">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">≋</span>Pond Diary</div>
+      <button class="primary" type="button" data-action="add"><span aria-hidden="true">+</span> Add entry</button>
+    </header>
+    <main>
+      <div class="hero">
+        <canvas class="waves" width="600" height="200" aria-hidden="true"></canvas>
+        <p id="section-label" class="eyebrow">Pond journal</p>
+        <h1 id="heading">Pond activity</h1>
+        <p id="subtitle">Water tests, treatments, and photos</p>
+      </div>
+      <nav class="navigation" aria-label="Pond Diary">
+        <button type="button" data-view="journal" aria-current="page">Journal</button>
+        <button type="button" data-view="photos">Photos</button>
+        <button type="button" data-view="trends">Water trends</button>
+        <button type="button" data-view="products">Products</button>
+      </nav>
+      <p id="error" class="error" role="alert" hidden></p>
+      <div id="content" aria-busy="true"><p class="empty" role="status">Loading your journal…</p></div>
+    </main>
+    <p id="notice" class="notice" role="status"></p>
+  </div>
+  <dialog id="entry-dialog" aria-labelledby="entry-heading"></dialog>
+  <dialog id="product-dialog" aria-labelledby="product-heading"></dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-heading"></dialog>
+</body>
+</html>

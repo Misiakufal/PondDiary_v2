@@ -1,0 +1,36 @@
+rest_command:
+  pond_diary_last_water_test:
+    url: !secret pond_diary_reminder_url
+    method: GET
+    timeout: 10
+    headers:
+      X-Pond-Diary-Token: !secret pond_diary_reminder_token
+
+automation:
+  - id: pond_diary_overdue_water_test
+    alias: Pond Diary overdue water test
+    triggers:
+      - trigger: time
+        at: "09:00:00"
+    actions:
+      - action: rest_command.pond_diary_last_water_test
+        response_variable: pond_diary
+      - condition: template
+        value_template: >-
+          {% if pond_diary.status == 200 and pond_diary.content is mapping %}
+            {% set last_test = as_timestamp(pond_diary.content.get('last_water_test'), none) %}
+            {{ last_test is not none and as_timestamp(now()) - last_test >= 14 * 86400 }}
+          {% else %}
+            false
+          {% endif %}
+      - repeat:
+          for_each:
+            - notify.mobile_app_first_phone
+            - notify.mobile_app_second_phone
+          sequence:
+            - action: "{{ repeat.item }}"
+              continue_on_error: true
+              data:
+                title: Pond Diary
+                message: "Your last pond water test was at least two weeks ago. It’s time to test the water again."
+    mode: single

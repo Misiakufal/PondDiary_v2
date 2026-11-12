@@ -1,5 +1,6 @@
 import { parameters } from "./parameters.mjs";
 import { plot } from "./charts.mjs";
+import { dateInput, parseEntryDate } from "./entry-dates.mjs";
 
 const content = document.querySelector("#content");
 const error = document.querySelector("#error");
@@ -217,11 +218,6 @@ function showEntry(entry) {
       <button type="button" class="danger" data-action="delete-entry" data-id="${id}">Remove entry</button></div></div>`);
 }
 
-function dateInput(value) {
-  const date = value ? new Date(value) : new Date();
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-}
-
 function attachmentField(hasImage, required = false, allowRemove = true) {
   return `<label>${required ? "Photo" : hasImage ? "Replace photo" : "Photo (optional)"}
     <input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" ${required ? "required" : ""}>
@@ -343,7 +339,9 @@ async function submitForm(form) {
     const data = Object.fromEntries(new FormData(form));
     if (type === "entry") {
       data.kind = form.elements.kind.value;
-      data.occurred = new Date(data.occurred).toISOString();
+      // An unchanged minute can represent either occurrence of a repeated local time.
+      if (id && data.occurred === form.elements.occurred.defaultValue) delete data.occurred;
+      else data.occurred = parseEntryDate(data.occurred);
       if (data.kind === "test") data.value = Number(data.value);
       if ("tags" in data) data.tags = data.tags.split(/[\s,]+/u).map(tag => tag.replace(/^#+/, "")).filter(Boolean);
     }

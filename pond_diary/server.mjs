@@ -36,6 +36,7 @@ const assets = new Map([
   ["/style.css", ["style.css", "text/css; charset=utf-8"]],
   ["/app.mjs", ["app.mjs", "text/javascript; charset=utf-8"]],
   ["/charts.mjs", ["charts.mjs", "text/javascript; charset=utf-8"]],
+  ["/entry-dates.mjs", ["entry-dates.mjs", "text/javascript; charset=utf-8"]],
   ["/parameters.mjs", ["parameters.mjs", "text/javascript; charset=utf-8"]]
 ]);
 
@@ -98,7 +99,8 @@ function saveEntry(data, id) {
   const previous = id && entryById.get(id);
   if (id && !previous) throw new RequestError(404, "Entry no longer exists.");
   const kind = previous ? previous.kind : data.kind;
-  const timestamp = typeof data.occurred === "string" ? Date.parse(data.occurred) : NaN;
+  const suppliedDate = data.occurred === undefined ? previous?.occurred : data.occurred;
+  const timestamp = typeof suppliedDate === "string" ? Date.parse(suppliedDate) : NaN;
   if (!Number.isFinite(timestamp)) invalid("Enter the date and time of the entry.");
   const occurred = new Date(timestamp).toISOString();
   const attachment = image(data.image, previous?.image);

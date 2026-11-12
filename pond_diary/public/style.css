@@ -132,18 +132,25 @@ textarea { resize: vertical; }
 .series { margin-bottom: 1rem; }
 .time-range { display: grid; gap: .5rem; margin-bottom: 1rem; }
 .time-range button[aria-disabled="true"] { opacity: .55; cursor: default; border-color: var(--line); }
+.trend-touch-help { display: none; }
 .series label { display: flex; align-items: center; gap: .35rem; min-height: 44px; padding: .3rem .65rem; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
 .series label:has(:checked) { border-color: var(--accent); background: var(--raised); }
+.series-swatch { width: .6rem; height: .6rem; background: var(--series-color); }
+.series label:not(:has(:checked)) .series-swatch { opacity: .4; }
 .chart {
   min-width: 0; padding: .8rem; background: #132541a6; border: 1px solid var(--line);
 }
-.chart h2 { font-size: 1rem; }
-.chart canvas { display: block; width: 100%; height: 175px; }
+#water-chart { height: clamp(17rem, 45vw, 28rem); touch-action: pan-y; }
+#trend-point { min-height: 2.5rem; padding: .4rem .6rem; background: var(--surface); }
 .chart details { margin-top: .4rem; color: var(--muted); }
 .chart summary { cursor: pointer; }
 .chart table { width: 100%; border-collapse: collapse; margin-top: .3rem; }
 .chart :is(th, td) { text-align: start; padding: .3rem; border-top: 1px solid var(--line); }
 .chart :is(th, td):last-child { text-align: end; }
+@media (pointer: coarse) {
+  .trend-touch-help { display: block; }
+  .trend-mouse-help { display: none; }
+}
 @media (max-width: 640px) {
   .tiles { grid-template-columns: minmax(0, 1fr); }
   .tile { min-height: 7rem; }

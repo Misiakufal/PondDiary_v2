@@ -1,70 +1,95 @@
-const dateLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
-const timeLabel = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
-const yearLabel = new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" });
-const valueLabel = new Intl.NumberFormat(undefined, { maximumSignificantDigits: 4 });
+import { init } from "./echarts.mjs";
+import { parameters } from "./parameters.mjs";
 
-export function plot(canvas, readings, dates) {
-  const { width, height } = canvas.getBoundingClientRect();
-  if (!width || !height) return;
-  const pixelRatio = window.devicePixelRatio || 1;
-  canvas.width = Math.round(width * pixelRatio);
-  canvas.height = Math.round(height * pixelRatio);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  ctx.scale(pixelRatio, pixelRatio);
-  ctx.font = "12px system-ui";
+export const seriesColors = {
+  ph: "#efba72", no2: "#7bc8ff", no3: "#69dbc3", po4: "#e3a4ff", nh4: "#ff9da9",
+  gh: "#f7df7e", kh: "#f3b1d5", cu: "#abc0ff", o2: "#a8e49a"
+};
 
-  const values = readings.map(reading => reading.value);
-  let low = Math.min(...values);
-  let high = Math.max(...values);
-  const padding = high > low ? (high - low) * .08 : Math.max(high * .1, .01);
-  low = Math.max(0, low - padding);
-  high += padding;
-  const ticks = Array.from({ length: 4 }, (_, index) => low + index * (high - low) / 3);
-  const left = Math.max(...ticks.map(value => ctx.measureText(valueLabel.format(value)).width)) + 9;
-  const right = width - 6;
-  const top = 13;
-  const bottom = height - 26;
-  const [first, last] = dates;
-  const x = date => first === last ? (left + right) / 2 : left + (Date.parse(date) - first) * (right - left) / (last - first);
-  const y = value => bottom - (value - low) * (bottom - top) / (high - low);
-
-  ctx.fillStyle = "#b9cce4";
-  ctx.strokeStyle = "#385577";
-  ctx.textBaseline = "middle";
-  for (const tick of ticks) {
-    const line = y(tick);
-    ctx.fillText(valueLabel.format(tick), 0, line);
-    ctx.beginPath();
-    ctx.moveTo(left, line);
-    ctx.lineTo(right, line);
-    ctx.stroke();
-  }
-  ctx.textBaseline = "top";
-  const sameDay = new Date(first).toDateString() === new Date(last).toDateString();
-  const differentYears = new Date(first).getFullYear() !== new Date(last).getFullYear();
-  const formatter = first !== last && sameDay ? timeLabel : differentYears ? yearLabel : dateLabel;
-  const startLabel = formatter.format(first);
-  const endLabel = formatter.format(last);
-  ctx.fillText(startLabel, left, bottom + 8);
-  if (endLabel !== startLabel && ctx.measureText(startLabel).width + ctx.measureText(endLabel).width + 8 <= right - left) {
-    ctx.textAlign = "right";
-    ctx.fillText(endLabel, right, bottom + 8);
-  }
-
-  ctx.strokeStyle = "#8bc8ff";
-  ctx.fillStyle = "#a6d7ff";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  readings.forEach((reading, index) => {
-    const point = [x(reading.occurred), y(reading.value)];
-    if (index === 0) ctx.moveTo(...point);
-    else ctx.lineTo(...point);
+export function mountWaterChart(container, readings, enabled, bounds, window, { onRange, onPoint, formatPoint }) {
+  const chart = init(container, undefined, { renderer: "canvas" });
+  const [first, last] = bounds;
+  const [startValue, endValue] = window;
+  const zoomable = first < last;
+  const axisLabel = { color: "#b9cce4", fontSize: 11, hideOverlap: true };
+  const axisLine = { show: true, lineStyle: { color: "#58769b" } };
+  const nameTextStyle = { color: "#dbe9fb", fontWeight: "bold" };
+  const yAxis = (name, position, showGrid) => ({
+    type: "value", name, position, nameTextStyle, axisLabel, axisLine, min: 0,
+    splitNumber: 5, splitLine: { show: showGrid, lineStyle: { color: "#385577" } }
   });
-  ctx.stroke();
-  for (const reading of readings) {
-    ctx.beginPath();
-    ctx.arc(x(reading.occurred), y(reading.value), 3, 0, Math.PI * 2);
-    ctx.fill();
+
+  chart.setOption({
+    animation: false,
+    grid: { left: 50, right: 50, top: 36, bottom: 36 },
+    tooltip: {
+      trigger: "item",
+      triggerOn: "click",
+      renderMode: "richText",
+      confine: true,
+      backgroundColor: "#132541",
+      borderColor: "#58769b",
+      textStyle: { color: "#eff6ff", fontSize: 12 },
+      formatter: ({ seriesId, value }) => formatPoint(seriesId, ...value)
+    },
+    xAxis: {
+      type: "time",
+      min: zoomable ? first : first - 30 * 60_000,
+      max: zoomable ? last : last + 30 * 60_000,
+      axisLabel,
+      axisLine,
+      splitNumber: 5
+    },
+    yAxis: [yAxis("mg/L", "left", true), yAxis("Unitless", "right", false)],
+    dataZoom: zoomable ? [{
+      id: "water-time",
+      type: "inside",
+      xAxisIndex: 0,
+      filterMode: "none",
+      startValue,
+      endValue,
+      minValueSpan: Math.min(60_000, last - first),
+      zoomOnMouseWheel: "shift",
+      moveOnMouseMove: true,
+      preventDefaultMouseMove: false
+    }] : []
+  });
+
+  function setSeries(selected) {
+    const series = Object.entries(parameters).filter(([key]) => selected.has(key)).map(([key, parameter]) => ({
+      id: key,
+      name: parameter.label,
+      type: "line",
+      yAxisIndex: parameter.unit ? 0 : 1,
+      data: readings.get(key) ?? [],
+      showSymbol: true,
+      symbol: "circle",
+      symbolSize: 9,
+      lineStyle: { width: 2, color: seriesColors[key] },
+      itemStyle: { color: seriesColors[key] }
+    }));
+    chart.setOption({ series }, { replaceMerge: ["series"] });
   }
+
+  setSeries(enabled);
+  chart.on("click", { seriesType: "line" }, ({ seriesId, value }) => {
+    if (Array.isArray(value)) onPoint(formatPoint(seriesId, ...value));
+  });
+  chart.on("datazoom", () => {
+    const [zoom] = chart.getOption().dataZoom;
+    if (zoom) onRange(zoom.startValue, zoom.endValue);
+  });
+  const observer = new ResizeObserver(() => chart.resize());
+  observer.observe(container);
+
+  return {
+    setSeries,
+    setRange(startValue, endValue) {
+      chart.dispatchAction({ type: "dataZoom", dataZoomId: "water-time", startValue, endValue }, { silent: true });
+    },
+    dispose() {
+      observer.disconnect();
+      chart.dispose();
+    }
+  };
 }

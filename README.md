@@ -30,6 +30,7 @@ Home Assistant checks the latest recorded water test at 9:00 a.m. in its configu
 From the repository root with Node.js 24 installed:
 
 ```powershell
+npm ci --prefix pond_diary
 node pond_diary/server.mjs
 ```
 

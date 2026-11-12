@@ -1,5 +1,5 @@
 import { parameters } from "./parameters.mjs";
-import { plot } from "./charts.mjs";
+import { mountWaterChart, seriesColors } from "./charts.mjs";
 import { dateInput, parseEntryDate } from "./entry-dates.mjs";
 
 const content = document.querySelector("#content");
@@ -102,7 +102,7 @@ function renderProducts() {
       </button></li>`).join("")}</ul>` : '<p class="empty">Your product library is empty. Add a product here or while logging a treatment.</p>'}`;
 }
 
-let chartObserver;
+let waterChart;
 let trendBounds;
 let trendWindow;
 
@@ -130,53 +130,93 @@ function moveTrendWindow(action) {
   }
 }
 
+const timeControls = {
+  in: "Zoom in", out: "Zoom out", earlier: "Earlier", later: "Later", reset: "Full history"
+};
+
+function updateTrendRange() {
+  const label = content.querySelector("#trend-window-label");
+  if (!label) return;
+  const [start, end] = trendWindow ?? trendBounds;
+  label.textContent = dateFormat.formatRange(start, end);
+  const disabled = {
+    in: end - start <= 60_000, out: !trendWindow, earlier: start === trendBounds[0],
+    later: end === trendBounds[1], reset: !trendWindow
+  };
+  content.querySelectorAll("[data-time]").forEach(button => {
+    button.setAttribute("aria-disabled", String(disabled[button.dataset.time]));
+  });
+}
+
+function updateTrendReadings() {
+  const body = content.querySelector("#trend-readings");
+  if (!body) return;
+  const readings = state.entries.filter(entry => entry.kind === "test" && state.enabled.has(entry.parameter));
+  body.innerHTML = readings.map(reading => {
+    const { label, unit } = parameters[reading.parameter];
+    return `<tr><td>${label}</td><td>${formatDate(reading.occurred)}</td><td>${reading.value}${unit ? ` ${unit}` : ""}</td></tr>`;
+  }).join("");
+  content.querySelector("#trend-reading-table").hidden = !readings.length;
+  content.querySelector("#trend-point").textContent = readings.length
+    ? "Select a point to see its date and value." : "Select a parameter with recorded readings.";
+}
+
 function renderTrends() {
   const tests = state.entries.filter(entry => entry.kind === "test").reverse();
   trendBounds = tests.length ? [Date.parse(tests[0].occurred), Date.parse(tests.at(-1).occurred)] : undefined;
   if (!trendBounds) trendWindow = undefined;
   else if (trendWindow) setTrendWindow(trendWindow[0], trendWindow[1] - trendWindow[0]);
-  const dates = trendWindow ?? trendBounds;
-  const visible = trendWindow ? tests.filter(entry => {
-    const time = Date.parse(entry.occurred);
-    return time >= dates[0] && time <= dates[1];
-  }) : tests;
-  const grouped = Map.groupBy(visible, entry => entry.parameter);
-  const active = Object.entries(parameters).filter(([key]) => state.enabled.has(key) && grouped.has(key));
   const zoomable = trendBounds && trendBounds[0] < trendBounds[1];
-  const controls = zoomable ? [
-    ["in", "Zoom in", dates[1] - dates[0] <= 60_000],
-    ["out", "Zoom out", !trendWindow],
-    ["earlier", "Earlier", dates[0] === trendBounds[0]],
-    ["later", "Later", dates[1] === trendBounds[1]],
-    ["reset", "Full history", !trendWindow]
-  ] : [];
-  const empty = !tests.length ? "Log a water test to start tracking trends."
-    : !visible.length ? "No readings in this time range."
-    : "Select a parameter with readings in this time range.";
   content.innerHTML = `<div class="series" role="group" aria-label="Visible water test parameters">
-    ${Object.entries(parameters).map(([key, { label }]) => `<label><input type="checkbox" data-series="${key}" ${state.enabled.has(key) ? "checked" : ""}>${label}</label>`).join("")}
+    ${Object.entries(parameters).map(([key, { label }]) => `<label><input type="checkbox" data-series="${key}" ${state.enabled.has(key) ? "checked" : ""}><span class="series-swatch" aria-hidden="true"></span>${label}</label>`).join("")}
     </div>
     ${zoomable ? `<div class="time-range" role="group" aria-label="Chart time range" aria-describedby="trend-window-label">
-      <div class="actions">${controls.map(([action, label, disabled]) => `
-        <button type="button" data-time="${action}" aria-disabled="${disabled}">${label}</button>`).join("")}</div>
-      <p class="meta" id="trend-window-label">${escape(dateFormat.formatRange(dates[0], dates[1]))}</p>
+      <div class="actions">${Object.entries(timeControls).map(([action, label]) => `
+        <button type="button" data-time="${action}">${label}</button>`).join("")}</div>
+      <p class="meta" id="trend-window-label"></p>
+      <p class="help trend-mouse-help">Drag to pan. Shift + scroll to zoom.</p>
+      <p class="help trend-touch-help">Swipe to pan. Pinch to zoom.</p>
     </div>` : ""}
-    <div id="chart-results">${active.length ? `<ul class="tiles">${active.map(([key, { label, unit }]) => `
-      <li class="chart"><h2>${label}${unit ? ` <span class="meta">(${unit})</span>` : ""}</h2>
-        <canvas data-chart="${key}" role="img" aria-label="${label} over time"></canvas>
-        <details><summary>${grouped.get(key).length} ${grouped.get(key).length === 1 ? "reading" : "readings"}</summary><table><thead><tr><th scope="col">Date and time</th><th scope="col">Value</th></tr></thead>
-        <tbody>${grouped.get(key).map(reading => `<tr><td>${formatDate(reading.occurred)}</td><td>${reading.value}</td></tr>`).join("")}</tbody></table></details>
-      </li>`).join("")}</ul>`
-    : `<p class="empty">${empty}</p>`}</div>`;
-  if (!active.length) return;
-  chartObserver = new ResizeObserver(items => {
-    for (const { target } of items) plot(target, grouped.get(target.dataset.chart), dates);
+    ${tests.length ? `<div class="chart">
+      <div id="water-chart" role="img" aria-label="Water readings over time. Concentrations in milligrams per litre on the left axis and unitless readings on the right."></div>
+      <p id="trend-point" class="meta" role="status"></p>
+      <details id="trend-reading-table"><summary>All readings for selected parameters</summary>
+        <table><thead><tr><th scope="col">Parameter</th><th scope="col">Date and time</th><th scope="col">Value</th></tr></thead>
+        <tbody id="trend-readings"></tbody></table>
+      </details>
+    </div>` : '<p class="empty">Log a water test to start tracking trends.</p>'}`;
+  content.querySelectorAll("[data-series]").forEach(input => {
+    input.closest("label").style.setProperty("--series-color", seriesColors[input.dataset.series]);
   });
-  content.querySelectorAll("[data-chart]").forEach(canvas => chartObserver.observe(canvas));
+  if (!tests.length) return;
+  const grouped = new Map();
+  for (const test of tests) {
+    if (!grouped.has(test.parameter)) grouped.set(test.parameter, []);
+    grouped.get(test.parameter).push([Date.parse(test.occurred), test.value]);
+  }
+  const point = content.querySelector("#trend-point");
+  waterChart = mountWaterChart(content.querySelector("#water-chart"), grouped, state.enabled, trendBounds, trendWindow ?? trendBounds, {
+    onRange(start, end) {
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+      const first = Math.round(start);
+      setTrendWindow(first, Math.round(end) - first);
+      updateTrendRange();
+    },
+    formatPoint(key, timestamp, value) {
+      const { label, unit } = parameters[key];
+      return `${label} · ${formatDate(timestamp)} · ${value}${unit ? ` ${unit}` : ""}`;
+    },
+    onPoint(reading) {
+      point.textContent = reading;
+    }
+  });
+  updateTrendRange();
+  updateTrendReadings();
 }
 
 function render(animate = false) {
-  chartObserver?.disconnect();
+  waterChart?.dispose();
+  waterChart = undefined;
   const [label, heading, subtitle] = views[state.view];
   document.querySelector("#section-label").textContent = label;
   document.querySelector("#heading").textContent = heading;
@@ -393,8 +433,8 @@ document.addEventListener("change", event => {
     const key = input.dataset.series;
     if (input.checked) state.enabled.add(key);
     else state.enabled.delete(key);
-    render();
-    content.querySelector(`[data-series="${key}"]`).focus();
+    waterChart?.setSeries(state.enabled);
+    updateTrendReadings();
   } else if (input.form?.dataset.form === "entry") {
     if (input.name === "kind") entryFields(input.form);
     else if (input.name === "parameter") updateReading(input.form);
@@ -408,8 +448,8 @@ document.addEventListener("click", event => {
   if (time) {
     if (button.getAttribute("aria-disabled") === "true") return;
     moveTrendWindow(time);
-    render();
-    content.querySelector(`[data-time="${time}"]`).focus();
+    waterChart.setRange(...(trendWindow ?? trendBounds));
+    updateTrendRange();
     return;
   }
   if (view && view !== state.view) {

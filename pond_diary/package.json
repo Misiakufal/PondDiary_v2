@@ -1,0 +1,7 @@
+{
+  "name": "pond-diary",
+  "private": true,
+  "dependencies": {
+    "echarts": "6.1.0"
+  }
+}

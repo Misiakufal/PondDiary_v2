@@ -36,6 +36,7 @@ const assets = new Map([
   ["/style.css", ["style.css", "text/css; charset=utf-8"]],
   ["/app.mjs", ["app.mjs", "text/javascript; charset=utf-8"]],
   ["/charts.mjs", ["charts.mjs", "text/javascript; charset=utf-8"]],
+  ["/echarts.mjs", ["../node_modules/echarts/dist/echarts.esm.min.mjs", "text/javascript; charset=utf-8"]],
   ["/entry-dates.mjs", ["entry-dates.mjs", "text/javascript; charset=utf-8"]],
   ["/parameters.mjs", ["parameters.mjs", "text/javascript; charset=utf-8"]]
 ]);

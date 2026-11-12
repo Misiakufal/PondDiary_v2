@@ -1,5 +1,7 @@
 FROM node:24-alpine
 WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 COPY server.mjs ./
 COPY public/ ./public/
 ENV HOST=0.0.0.0 PORT=8099 DATA_DIR=/data SUPERVISOR_ONLY=1

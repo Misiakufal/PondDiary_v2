@@ -123,10 +123,12 @@ function saveEntry(data, id) {
       };
       break;
     }
+    case "event":
     case "photo": {
-      if (!attachment) invalid("Choose a photo.");
-      if (!Array.isArray(data.tags) || data.tags.length > 20) invalid("Use up to 20 hashtags.");
-      const tags = [...new Set(data.tags.map(tag => field(tag, "hashtag", 32, true)))];
+      if (kind === "photo" && !attachment) invalid("Choose a photo.");
+      const hashtags = kind === "event" && data.tags === undefined ? [] : data.tags;
+      if (!Array.isArray(hashtags) || hashtags.length > 20) invalid("Use up to 20 hashtags.");
+      const tags = [...new Set(hashtags.map(tag => field(tag, "hashtag", 32, true)))];
       if (tags.some(tag => !/^[\p{L}\p{M}\p{N}_-]+$/u.test(tag))) invalid("Use letters, numbers, underscores, or hyphens in hashtags.");
       payload = {
         title: field(data.title, "title", 120, true), description: field(data.description ?? "", "description", 2000), tags

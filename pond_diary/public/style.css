@@ -10,6 +10,7 @@
   --on-accent: #10243e;
   --test: #a7deff;
   --treatment: #f8cd9f;
+  --event: #dac5ff;
   --photo: #a9e5df;
   --danger: #ffb4bb;
   font: 16px/1.5 Inter, "Segoe UI", system-ui, sans-serif;
@@ -89,6 +90,7 @@ h1 { font-size: clamp(2.3rem, 7vw, 4rem); letter-spacing: -.065em; line-height: 
 .tile[data-kind="test"] { --category: var(--test); }
 .tile[data-kind="treatment"] { --category: var(--treatment); }
 .tile[data-kind="photo"] { --category: var(--photo); }
+.tile[data-kind="event"] { --category: var(--event); }
 .tile-top, .tile-main { display: flex; align-items: center; gap: .75rem; min-width: 0; }
 .tile-top { justify-content: space-between; }
 .tile-label { color: var(--category); font-size: .8rem; }

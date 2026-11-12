@@ -1,7 +1,7 @@
 name: Pond Diary
-version: "1.0.2"
+version: "1.0.3"
 slug: pond_diary
-description: Log pond water tests, treatments, and photos.
+description: Log pond water tests, treatments, events, and photos.
 url: https://github.com/Misiakufal/PondDiary_v2
 arch:
   - aarch64

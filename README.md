@@ -1,6 +1,6 @@
 # Pond Diary
 
-Pond Diary is a Home Assistant add-on for logging water readings, treatments, and pond photos. It serves a responsive web interface through Home Assistant Ingress.
+Pond Diary is a Home Assistant add-on for logging water readings, treatments, events, and pond photos. It serves a responsive web interface through Home Assistant Ingress.
 
 ## Install in Home Assistant
 

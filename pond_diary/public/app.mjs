@@ -9,9 +9,9 @@ const productDialog = document.querySelector("#product-dialog");
 const confirmDialog = document.querySelector("#confirm-dialog");
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 const motion = matchMedia("(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)");
-const kinds = { test: "Water test", treatment: "Treatment", photo: "Photo" };
+const kinds = { test: "Water test", treatment: "Treatment", event: "Event", photo: "Photo" };
 const views = {
-  journal: ["Pond journal", "Pond activity", "Water tests, treatments, and photos"],
+  journal: ["Pond journal", "Pond activity", "Water tests, treatments, events, and photos"],
   photos: ["Pond journal", "Pond photos", "Photos and observations from the pond"],
   trends: ["Water quality", "Water trends", "Choose the parameters you want to track"],
   products: ["Pond care", "Product library", "Products you can select when logging a treatment"]
@@ -60,15 +60,15 @@ async function refresh() {
 
 function tile(entry, gallery) {
   const title = titleFor(entry);
-  const summary = entry.kind === "photo" ? entry.description : [entry.dose, entry.notes].filter(Boolean).join(" · ");
-  const photo = entry.kind === "photo" && entry.hasImage;
+  const summary = entry.description ?? [entry.dose, entry.notes].filter(Boolean).join(" · ");
+  const photo = entry.hasImage && (entry.kind === "photo" || entry.kind === "event");
   const image = photo ? `<img src="${imageUrl("entries", entry.id)}" alt="" loading="lazy">` : "";
   return `<li><button type="button" class="tile" data-action="entry" data-id="${entry.id}" data-kind="${entry.kind}">
     <span class="tile-top"><span class="tile-label">${kinds[entry.kind]}</span><time class="meta" datetime="${entry.occurred}">${formatDate(entry.occurred)}</time></span>
     ${gallery && image ? `<span class="gallery-image">${image}</span>` : ""}
     <span class="tile-main"><span class="tile-copy"><span class="tile-title">${escape(title)}</span>
       ${summary ? `<span class="meta tile-summary">${escape(summary)}</span>` : ""}
-      ${gallery && entry.tags.length ? `<span>${tagList(entry.tags)}</span>` : ""}</span>
+      ${(gallery || entry.kind === "event") && entry.tags?.length ? `<span>${tagList(entry.tags)}</span>` : ""}</span>
       ${!gallery && image ? `<span class="tile-thumb">${image}</span>` : ""}
     </span>
   </button></li>`;
@@ -76,7 +76,7 @@ function tile(entry, gallery) {
 
 function renderJournal(gallery) {
   const visible = state.entries.filter(entry => gallery ? entry.kind === "photo" : state.filter === "all" || entry.kind === state.filter);
-  const filters = Object.entries({ all: "All", test: "Water tests", treatment: "Treatments", photo: "Photos" });
+  const filters = Object.entries({ all: "All", test: "Water tests", treatment: "Treatments", event: "Events", photo: "Photos" });
   const empty = gallery ? "No pond photos yet. Use Add entry to upload one."
     : state.filter === "all" ? "No entries yet. Use Add entry to record something about your pond."
     : "No entries in this category.";
@@ -204,7 +204,7 @@ function show(dialog, markup) {
 
 function showEntry(entry) {
   const { id, kind } = entry;
-  const notes = kind === "photo" ? entry.description : entry.notes;
+  const notes = entry.description ?? entry.notes;
   const reading = kind === "test" ? parameters[entry.parameter] : null;
   show(entryDialog, `${dialogHead(entryDialog, kind === "test" ? "Water test" : titleFor(entry))}
     <div class="detail"><p class="meta">${kinds[kind]} · ${formatDate(entry.occurred)}</p>
@@ -212,7 +212,7 @@ function showEntry(entry) {
     ${entry.dose ? `<p>Dose: ${escape(entry.dose)}</p>` : ""}
     ${entry.hasImage ? `<img class="detail-image" src="${imageUrl("entries", id)}" alt="${kind === "photo" ? escape(entry.title) : "Entry attachment"}">` : ""}
     ${notes ? `<p>${escape(notes)}</p>` : ""}
-    ${kind === "photo" && entry.tags.length ? `<p>${tagList(entry.tags)}</p>` : ""}
+    ${entry.tags?.length ? `<p>${tagList(entry.tags)}</p>` : ""}
     <div class="actions"><button type="button" data-action="edit-entry" data-id="${id}">Edit entry</button>
       <button type="button" class="danger" data-action="delete-entry" data-id="${id}">Remove entry</button></div></div>`);
 }
@@ -252,7 +252,7 @@ function entryFields(form, entry = {}) {
       <label>Description<textarea name="description" rows="3" maxlength="2000">${escape(entry.description)}</textarea></label>
       <label>Hashtags<input name="tags" maxlength="660" placeholder="#lilies #spring" value="${escape(entry.tags?.map(tag => `#${tag}`).join(" "))}"></label>`;
   }
-  if (kind !== "photo") {
+  if (kind === "test" || kind === "treatment") {
     fields.insertAdjacentHTML("beforeend", `<label>Notes<textarea name="notes" maxlength="2000" rows="2">${escape(entry.notes)}</textarea></label>`);
   }
   fields.insertAdjacentHTML("beforeend", attachmentField(entry.hasImage, kind === "photo" && !entry.hasImage, kind !== "photo"));
@@ -345,7 +345,7 @@ async function submitForm(form) {
       data.kind = form.elements.kind.value;
       data.occurred = new Date(data.occurred).toISOString();
       if (data.kind === "test") data.value = Number(data.value);
-      if (data.kind === "photo") data.tags = data.tags.split(/[\s,]+/u).map(tag => tag.replace(/^#+/, "")).filter(Boolean);
+      if ("tags" in data) data.tags = data.tags.split(/[\s,]+/u).map(tag => tag.replace(/^#+/, "")).filter(Boolean);
     }
     await readAttachment(form, data);
     const resource = type === "entry" ? "entries" : "products";

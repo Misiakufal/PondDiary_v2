@@ -4,6 +4,7 @@ import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { resolve, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { parameters } from "./public/parameters.mjs";
+import { maxPhotoBytes } from "./public/photo-upload.mjs";
 
 const directory = resolve(process.env.DATA_DIR || ".pond-data");
 mkdirSync(directory, { recursive: true });
@@ -38,6 +39,7 @@ const assets = new Map([
   ["/charts.mjs", ["charts.mjs", "text/javascript; charset=utf-8"]],
   ["/echarts.mjs", ["../node_modules/echarts/dist/echarts.esm.min.mjs", "text/javascript; charset=utf-8"]],
   ["/entry-dates.mjs", ["entry-dates.mjs", "text/javascript; charset=utf-8"]],
+  ["/photo-upload.mjs", ["photo-upload.mjs", "text/javascript; charset=utf-8"]],
   ["/parameters.mjs", ["parameters.mjs", "text/javascript; charset=utf-8"]]
 ]);
 
@@ -65,7 +67,7 @@ function image(value, previous = null) {
   const match = typeof value === "string" && value.length <= limit && imagePattern.exec(value);
   if (!match) invalid("Choose a JPEG, PNG, WebP, or GIF image under 4 MB.");
   const bytes = Buffer.from(match[2], "base64");
-  if (!bytes.length || bytes.length > 4 * 1024 * 1024) invalid("Choose an image under 4 MB.");
+  if (!bytes.length || bytes.length > maxPhotoBytes) invalid("Choose an image under 4 MB.");
   return value;
 }
 

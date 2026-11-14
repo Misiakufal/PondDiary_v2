@@ -1,6 +1,7 @@
 import { parameters } from "./parameters.mjs";
 import { mountWaterChart, seriesColors } from "./charts.mjs";
 import { dateInput, parseEntryDate } from "./entry-dates.mjs";
+import { maxPhotoBytes, preparePhoto } from "./photo-upload.mjs";
 
 const content = document.querySelector("#content");
 const error = document.querySelector("#error");
@@ -261,7 +262,7 @@ function showEntry(entry) {
 function attachmentField(hasImage, required = false, allowRemove = true) {
   return `<label>${required ? "Photo" : hasImage ? "Replace photo" : "Photo (optional)"}
     <input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" ${required ? "required" : ""}>
-  </label><p class="help">JPEG, PNG, WebP, or GIF · Up to 4 MB</p>
+  </label><p class="help">JPEG, PNG, WebP, or GIF. Photos over 4 MB are resized on save. Oversized animations become still images.</p>
   ${hasImage && allowRemove ? '<label class="inline-check"><input type="checkbox" name="removeImage"> Remove current photo</label>' : ""}`;
 }
 
@@ -337,20 +338,20 @@ function confirmRemove(collection, id) {
     </form>`);
 }
 
-async function readAttachment(form, data) {
+async function readAttachment(form, data, button) {
   const file = form.elements.image?.files[0];
   if (!file) {
     if (data.removeImage) data.image = null;
     else delete data.image;
   } else {
-    if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type) || file.size > 4 * 1024 * 1024) {
-      throw new Error("Choose a JPEG, PNG, WebP, or GIF image under 4 MB.");
-    }
+    if (file.size > maxPhotoBytes) button.textContent = "Resizing photo…";
+    const photo = await preparePhoto(file);
+    if (photo !== file) button.textContent = "Saving photo…";
     data.image = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
       reader.onerror = () => reject(new Error("Could not read the photo."));
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(photo);
     });
   }
   delete data.removeImage;
@@ -360,6 +361,7 @@ async function submitForm(form) {
   const button = form.querySelector('[type="submit"]');
   const message = form.querySelector(".error");
   if (button.disabled) return;
+  const buttonLabel = button.textContent;
   button.disabled = true;
   message.hidden = true;
   const { id, collection, form: type } = form.dataset;
@@ -385,7 +387,7 @@ async function submitForm(form) {
       if (data.kind === "test") data.value = Number(data.value);
       if ("tags" in data) data.tags = data.tags.split(/[\s,]+/u).map(tag => tag.replace(/^#+/, "")).filter(Boolean);
     }
-    await readAttachment(form, data);
+    await readAttachment(form, data, button);
     const resource = type === "entry" ? "entries" : "products";
     const result = await api(id ? `${resource}/${id}` : resource, id ? "PUT" : "POST", data);
     if (type === "entry" && !id) {
@@ -409,6 +411,7 @@ async function submitForm(form) {
     message.textContent = exception.message;
     message.hidden = false;
   } finally {
+    button.textContent = buttonLabel;
     button.disabled = false;
     close.disabled = false;
     dialog.removeAttribute("aria-busy");

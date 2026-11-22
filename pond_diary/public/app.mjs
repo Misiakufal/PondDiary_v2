@@ -260,9 +260,14 @@ function showEntry(entry) {
 }
 
 function attachmentField(hasImage, required = false, allowRemove = true) {
-  return `<label>${required ? "Photo" : hasImage ? "Replace photo" : "Photo (optional)"}
-    <input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" ${required ? "required" : ""}>
-  </label><p class="help">JPEG, PNG, WebP, or GIF. Photos over 4 MB are resized on save. Oversized animations become still images.</p>
+  return `<div class="photo-attachment" data-required="${required}">
+    <label>${required ? "Photo" : hasImage ? "Replace photo" : "Photo (optional)"}
+      <input name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" ${required ? "required" : ""}>
+    </label>
+    <div class="actions"><button type="button" data-action="take-photo">Take photo</button>
+      <span class="help" data-camera-status role="status"></span></div>
+    <input type="file" data-camera accept="image/*" capture="environment" aria-label="Take photo using camera" hidden>
+  </div><p class="help">JPEG, PNG, WebP, or GIF. Photos over 4 MB are resized on save. Oversized animations become still images.</p>
   ${hasImage && allowRemove ? '<label class="inline-check"><input type="checkbox" name="removeImage"> Remove current photo</label>' : ""}`;
 }
 
@@ -339,7 +344,7 @@ function confirmRemove(collection, id) {
 }
 
 async function readAttachment(form, data, button) {
-  const file = form.elements.image?.files[0];
+  const file = form.querySelector("[data-camera]")?.files[0] ?? form.elements.image?.files[0];
   if (!file) {
     if (data.removeImage) data.image = null;
     else delete data.image;
@@ -432,7 +437,18 @@ document.addEventListener("submit", event => {
 
 document.addEventListener("change", event => {
   const input = event.target;
-  if (input.matches("[data-series]")) {
+  if (input.matches('[data-camera], input[name="image"]')) {
+    const attachment = input.closest(".photo-attachment");
+    const camera = attachment.querySelector("[data-camera]");
+    const picker = input.form.elements.image;
+    if (input.files.length) {
+      if (input === camera) picker.value = "";
+      else camera.value = "";
+      if (input.form.elements.removeImage) input.form.elements.removeImage.checked = false;
+    }
+    picker.required = attachment.dataset.required === "true" && !camera.files.length;
+    attachment.querySelector("[data-camera-status]").textContent = camera.files[0]?.name ?? "";
+  } else if (input.matches("[data-series]")) {
     const key = input.dataset.series;
     if (input.checked) state.enabled.add(key);
     else state.enabled.delete(key);
@@ -467,6 +483,7 @@ document.addEventListener("click", event => {
   const entry = id && state.entries.find(item => item.id === id);
   const product = id && state.products.find(item => item.id === id);
   switch (action) {
+    case "take-photo": button.closest(".photo-attachment").querySelector("[data-camera]").click(); break;
     case "retry": void refresh(); break;
     case "add": entryForm(); break;
     case "entry": if (entry) showEntry(entry); break;

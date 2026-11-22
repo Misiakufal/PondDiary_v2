@@ -125,6 +125,8 @@ input[type="checkbox"] { width: auto; min-height: 0; accent-color: var(--accent)
 textarea { resize: vertical; }
 ::file-selector-button { border-radius: 0; }
 .inline-check { display: flex; align-items: center; gap: .45rem; }
+.photo-attachment { display: grid; gap: .6rem; }
+.photo-attachment [data-camera-status] { overflow-wrap: anywhere; min-width: 0; }
 .form-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .7rem; }
 .detail-image { max-height: min(55dvh, 31rem); height: auto; object-fit: contain; background: var(--bg); }
 .detail p { overflow-wrap: anywhere; white-space: pre-wrap; }
